@@ -29,25 +29,25 @@ def chooseRandomHarmonizingPitch(basePitch, key, intervalFilterList=None):
     return harmonizingPitch
 
 
-def chooseNextCounterpoint(prevGround, currentGround, prevCPoint, key):
+def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
 
     # counterpoint should leap no more than an 8ve
     possibleNextPitches = key.getPitches(
-                minPitch=prevCPoint.pitch.transpose('-P8'),
-                maxPitch=prevCPoint.pitch.transpose('P8')
+                minPitch=nextCPoint.pitch.transpose('-P8'),
+                maxPitch=nextCPoint.pitch.transpose('P8')
             )
 
     consonantLegalNextPitches = []
 
     for p in possibleNextPitches:
-        nextCPoint = music21.note.Note(pitch=p)
+        currentCPoint = music21.note.Note(pitch=p)
         vlq = music21.voiceLeading.VoiceLeadingQuartet(
-                v1n1=prevCPoint,
+                v1n1=currentCPoint,
                 v1n2=nextCPoint,
-                v2n1=prevGround,
-                v2n2=currentGround
+                v2n1=currentGround,
+                v2n2=nextGround
               )
-        if not vlq.vIntervals[1].isConsonant():
+        if not vlq.vIntervals[0].isConsonant():
             continue
 
         if vlq.parallelUnisonOrOctave() or vlq.parallelFifth():
@@ -61,47 +61,48 @@ def chooseNextCounterpoint(prevGround, currentGround, prevCPoint, key):
 
         consonantLegalNextPitches.append(p)
 
+    #TODO sometimes no valid pitch is found, so raise exception
+
     return random.choice(consonantLegalNextPitches)
 
 
-def createCounterpoint(ground, upper=True):
+def harmonizeReverse(ground):
     counterpoint = ground.template(fillWithRests=False)
-    #counterpoint.id='Counterpoint'
-
     key = ground.analyze('key.krumhanslschmuckler')
 
-    for n in ground.recurse().notes:
-        # first note in counterpoint should be a perfect consonance 
-        if len(list(counterpoint.recurse().notes)) == 0:
-            nextCPoint = music21.note.Note()
-            nextCPoint.quarterLength = n.quarterLength 
-            nextCPoint.pitch = chooseRandomHarmonizingPitch(
-                    n.pitch, key, intervalFilterList=[5, 8]
+    groundNotes = list(ground.recurse().notes)
+    groundNotes.reverse()
+    for currentGround in groundNotes:
+        currentCPoint = music21.note.Note()
+        currentCPoint.quarterLength = currentGround.quarterLength 
+        counterpoint.measure(currentGround.measureNumber).insert(
+            currentGround.offset, currentCPoint) 
+
+        # last note in counterpoint should be a P8
+        if len(list(counterpoint.recurse().notes)) == 1:
+            currentCPoint.pitch = chooseRandomHarmonizingPitch(
+                    currentGround.pitch, key, intervalFilterList=[8]
                     )
 
-            counterpoint.measure(n.measureNumber).insert(
-                    n.offset, nextCPoint
-                    ) 
-            continue
+        # penultimate note should be a M6
+        elif len(list(counterpoint.recurse().notes)) == 2:
+            currentCPoint.pitch = chooseRandomHarmonizingPitch(
+                    currentGround.pitch, key, intervalFilterList=[6]
+                    )
+            currentCPoint.pitch.transpose(1, inPlace=True)
 
+        else:
+            nextGround = currentGround.next(className='Note')
+            nextCPoint = currentCPoint.next(className='Note')
+            
+            ambitus = music21.interval.Interval('P12')
 
-        # insert dummy note as next note in counterpoint
-        nextCPoint = music21.note.Note()
-        nextCPoint.quarterLength = n.quarterLength
-        counterpoint.measure(n.measureNumber).insert(n.offset, nextCPoint) 
+            while ambitus.semitones >= 16: # ambitus should not exceed M10
+                currentCPoint.pitch = chooseNextCounterpoint(
+                        currentGround, nextGround, nextCPoint, key)
+                ambitus = counterpoint.analyze('ambitus')
 
-        prevGround = n.previous(className='Note')
-        prevCPoint = nextCPoint.previous(className='Note')
-
-        ambitus = music21.interval.Interval('P12')
-        # get actual pitch of next counterpoint
-        while ambitus.semitones >= 16: # ambitus should not exceed M10
-            nextPitch = chooseNextCounterpoint(
-                    prevGround, n, prevCPoint, key)
-            nextCPoint.pitch = nextPitch
-            ambitus = counterpoint.analyze('ambitus')
-
-        #print(ambitus)
+            #print(ambitus)
 
 
     # set clef so notes are centered on staff
@@ -113,19 +114,17 @@ def createCounterpoint(ground, upper=True):
 
 def main():
     ground = music21.converter.parse('tinynotation: 4/4 D1 F E D G F A G F E D')
-    counterpoint = createCounterpoint(ground)
-
+    counterpoint = harmonizeReverse(ground)
     display = music21.stream.Score(id='Display')
     display.insert(0, counterpoint)
     display.insert(0, ground)
-
 
     reduction = display.partsToVoices().chordify()
     for c in reduction.recurse().getElementsByClass('Chord'):
         c.annotateIntervals()
 
     display.insert(0, reduction)
-    display.show()
+    #display.show()
 
 
 if __name__ == "__main__":
