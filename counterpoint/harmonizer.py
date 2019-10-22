@@ -2,17 +2,31 @@ import music21
 
 import random
 
-CONSONANTS = [1, 3, 5, 6, 8]
+CONSONANCES = [1, 3, 5, 6, 8]
 
 
-def chooseRandomHarmonizingPitch(basePitch, key):
+def chooseRandomHarmonizingPitch(basePitch, key, intervalFilterList=None):
     ''' Return a pitch that harmonizes a given pitch'''
 
-    intervalNum = random.choice(CONSONANTS)
-    gi = music21.interval.GenericInterval(intervalNum)
-    newPitch = gi.transposePitchKeyAware(basePitch, key)
+    if intervalFilterList:
+        consonances = list(filter(
+            lambda i: i in CONSONANCES, intervalFilterList)
+            )
+        if len(consonances) != 0:
+            intervalNum = random.choice(consonances)
+        else:
+            return # TODO raise exception if no consonances in filter list?
+    else:
+        intervalNum = random.choice(CONSONANCES)
 
-    return newPitch
+    # fifths should always be perfect (no diminished fifths allowed!)
+    if intervalNum == 5:
+        return basePitch.transpose('P5')
+
+    gi = music21.interval.GenericInterval(intervalNum)
+    harmonizingPitch = gi.transposePitchKeyAware(basePitch, key)
+
+    return harmonizingPitch
 
 
 def chooseNextCounterpoint(prevGround, currentGround, prevCPoint, key):
@@ -52,21 +66,28 @@ def chooseNextCounterpoint(prevGround, currentGround, prevCPoint, key):
 
 def createCounterpoint(ground, upper=True):
     counterpoint = ground.template(fillWithRests=False)
-    counterpoint.id='Counterpoint'
+    #counterpoint.id='Counterpoint'
+
     key = ground.analyze('key.krumhanslschmuckler')
 
     for n in ground.recurse().notes:
-        # first note
+        # first note in counterpoint should be a perfect consonance 
         if len(list(counterpoint.recurse().notes)) == 0:
-            nextCPoint = music21.note.Note(quarterLength=n.quarterLength) 
-            nextCPoint.pitch = chooseRandomHarmonizingPitch(n.pitch, key)
-            counterpoint.measure(n.measureNumber).insert(n.offset, nextCPoint) 
+            nextCPoint = music21.note.Note()
+            nextCPoint.quarterLength = n.quarterLength 
+            nextCPoint.pitch = chooseRandomHarmonizingPitch(
+                    n.pitch, key, intervalFilterList=[5, 8]
+                    )
+
+            counterpoint.measure(n.measureNumber).insert(
+                    n.offset, nextCPoint
+                    ) 
             continue
 
-        
 
-        # insert dummy note as next counterpoint
-        nextCPoint = music21.note.Note(quarterLength=n.quarterLength) 
+        # insert dummy note as next note in counterpoint
+        nextCPoint = music21.note.Note()
+        nextCPoint.quarterLength = n.quarterLength
         counterpoint.measure(n.measureNumber).insert(n.offset, nextCPoint) 
 
         prevGround = n.previous(className='Note')
@@ -74,7 +95,7 @@ def createCounterpoint(ground, upper=True):
 
         ambitus = music21.interval.Interval('P12')
         # get actual pitch of next counterpoint
-        while ambitus.semitones >= 19:
+        while ambitus.semitones >= 16: # ambitus should not exceed M10
             nextPitch = chooseNextCounterpoint(
                     prevGround, n, prevCPoint, key)
             nextCPoint.pitch = nextPitch
