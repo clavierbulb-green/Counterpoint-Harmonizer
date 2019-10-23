@@ -69,8 +69,10 @@ def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
         if vlq.hiddenFifth() or vlq.hiddenOctave():
             continue
 
-        if vlq.voiceCrossing():
-            continue
+        # allow occassional voice crossing
+
+        #if vlq.voiceCrossing():
+            #continue
 
         consonantLegalNextPitches.append(p)
 
@@ -121,10 +123,6 @@ def harmonizeReverse(ground):
                 currentCPoint.pitch = chooseNextCounterpoint(
                         currentGround, nextGround, nextCPoint, key)
                 ambitus = counterpoint.analyze('ambitus')
-                print('ambitus:', ambitus.semitones)
-
-            print(music21.interval.Interval(nextCPoint.pitch, currentCPoint.pitch) )
-            print()
 
 
     # set clef so notes are centered on staff
