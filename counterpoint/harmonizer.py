@@ -1,8 +1,11 @@
 import music21
 
 import random
+import sys
 
 CONSONANCES = [1, 3, 5, 6, 8]
+
+MELODIC_CONSONANCES = ['P1', 'm2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'P8']
 
 
 def chooseRandomHarmonizingPitch(basePitch, key, intervalFilterList=None):
@@ -47,7 +50,17 @@ def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
                 v2n1=currentGround,
                 v2n2=nextGround
               )
+        if vlq.hIntervals[0].name not in MELODIC_CONSONANCES:
+            continue
+
+        # minor 6ths only allowed ascending
+        if vlq.hIntervals[0].directedName == 'm-6':
+            continue
+
         if not vlq.vIntervals[0].isConsonant():
+            continue
+
+        if vlq.vIntervals[0].name == 'P1':
             continue
 
         if vlq.parallelUnisonOrOctave() or vlq.parallelFifth():
@@ -61,9 +74,16 @@ def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
 
         consonantLegalNextPitches.append(p)
 
-    #TODO sometimes no valid pitch is found, so raise exception
+    try:
+        currentCPointPitch = random.choice(consonantLegalNextPitches)
+    except IndexError:
+        print('No legal pitches to harmonize CF found!')
+        print('currentG:', currentGround.nameWithOctave)
+        print('nextG:', nextGround.nameWithOctave)
+        print('nextCP:', nextCPoint.nameWithOctave)
+        sys.exit()
 
-    return random.choice(consonantLegalNextPitches)
+    return currentCPointPitch
 
 
 def harmonizeReverse(ground):
@@ -95,14 +115,16 @@ def harmonizeReverse(ground):
             nextGround = currentGround.next(className='Note')
             nextCPoint = currentCPoint.next(className='Note')
             
-            ambitus = music21.interval.Interval('P12')
+            ambitus = music21.interval.Interval('m13')
 
-            while ambitus.semitones >= 16: # ambitus should not exceed M10
+            while ambitus.semitones >= 20:
                 currentCPoint.pitch = chooseNextCounterpoint(
                         currentGround, nextGround, nextCPoint, key)
                 ambitus = counterpoint.analyze('ambitus')
+                print('ambitus:', ambitus.semitones)
 
-            #print(ambitus)
+            print(music21.interval.Interval(nextCPoint.pitch, currentCPoint.pitch) )
+            print()
 
 
     # set clef so notes are centered on staff
@@ -124,7 +146,7 @@ def main():
         c.annotateIntervals()
 
     display.insert(0, reduction)
-    #display.show()
+    display.show()
 
 
 if __name__ == "__main__":
