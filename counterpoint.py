@@ -5,7 +5,9 @@ import sys
 
 CONSONANCES = [1, 3, 5, 6, 8]
 
-MELODIC_CONSONANCES = ['P1', 'm2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'P8']
+CONSONANT_MELODIC_INTERVALS= [
+        'P1', 'm2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'P8'
+        ]
 
 
 def chooseRandomHarmonizingPitch(basePitch, key, intervalFilterList=None):
@@ -34,15 +36,12 @@ def chooseRandomHarmonizingPitch(basePitch, key, intervalFilterList=None):
 
 def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
 
-    # counterpoint should leap no more than an 8ve
-    possibleNextPitches = key.getPitches(
-                minPitch=nextCPoint.pitch.transpose('-P8'),
-                maxPitch=nextCPoint.pitch.transpose('P8')
-            )
+    melodicConsonances = getMelodicConsonantPitches(nextCPoint.pitch, key)
 
     consonantLegalNextPitches = []
 
-    for p in possibleNextPitches:
+    #for p in possibleNextPitches:
+    for p in melodicConsonances:
         currentCPoint = music21.note.Note(pitch=p)
         vlq = music21.voiceLeading.VoiceLeadingQuartet(
                 v1n1=currentCPoint,
@@ -50,13 +49,6 @@ def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
                 v2n1=currentGround,
                 v2n2=nextGround
               )
-        if vlq.hIntervals[0].name not in MELODIC_CONSONANCES:
-            continue
-
-        # minor 6ths only allowed ascending
-        if vlq.hIntervals[0].directedName == 'm-6':
-            continue
-
         if not vlq.vIntervals[0].isConsonant():
             continue
 
@@ -130,6 +122,28 @@ def harmonizeReverse(ground):
     measure_1.clef = music21.clef.bestClef(counterpoint.flat)
 
     return counterpoint
+
+
+def getMelodicConsonantPitches(pitch, key):
+    '''Returns a list of pitches that can be reached from a given pitch
+    by movement of consonant melodic interval'''
+
+    diatonic_pitches_in_octave = key.getPitches(
+            minPitch=pitch.transpose('-P8'), 
+            maxPitch=pitch.transpose('P8')
+            )
+    consonantPitches = []
+
+    for next_pitch in diatonic_pitches_in_octave:
+        melodic_interval = music21.interval.Interval(pitch, next_pitch)
+
+        if melodic_interval.name in CONSONANT_MELODIC_INTERVALS:
+            if melodic_interval.directedName == 'm-6':
+                continue
+
+            consonantPitches.append(next_pitch)
+
+    return consonantPitches
 
 
 def main():
