@@ -69,6 +69,11 @@ def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
         if vlq.hiddenFifth() or vlq.hiddenOctave():
             continue
 
+        # both parts should not skip into a perfect consonance
+        if all([i.isSkip for i in vlq.hIntervals]) and  \
+                vlq.vIntervals[1].name in ('P8', 'P5'):
+            continue
+
         # allow occassional voice crossing
 
         #if vlq.voiceCrossing():
