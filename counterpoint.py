@@ -32,12 +32,12 @@ def chooseRandomHarmonizingPitch(basePitch, key, intervalFilterList=None):
     return harmonizingPitch
 
 
-def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
+def chooseNextCounterpoint(prevCPoint, prevGround, currentGround, key):
 
     # counterpoint should leap no more than an 8ve
     possibleNextPitches = key.getPitches(
-                minPitch=nextCPoint.pitch.transpose('-P8'),
-                maxPitch=nextCPoint.pitch.transpose('P8')
+                minPitch=prevCPoint.pitch.transpose('-P8'),
+                maxPitch=prevCPoint.pitch.transpose('P8')
             )
 
     consonantLegalNextPitches = []
@@ -45,11 +45,14 @@ def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
     for p in possibleNextPitches:
         currentCPoint = music21.note.Note(pitch=p)
         vlq = music21.voiceLeading.VoiceLeadingQuartet(
-                v1n1=currentCPoint,
-                v1n2=nextCPoint,
-                v2n1=currentGround,
-                v2n2=nextGround
+                v1n1=prevCPoint,
+                v1n2=currentCPoint,
+                v2n1=prevGround,
+                v2n2=currentGround
               )
+
+        # counterpoint should move by a melodic consonance
+        # TODO: currently assumes counterpoint is in the upper voice
         if vlq.hIntervals[0].name not in MELODIC_CONSONANCES:
             continue
 
@@ -57,10 +60,11 @@ def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
         if vlq.hIntervals[0].directedName == 'm-6':
             continue
 
-        if not vlq.vIntervals[0].isConsonant():
+        if not vlq.vIntervals[1].isConsonant():
             continue
 
-        if vlq.vIntervals[0].name == 'P1':
+        # the unison(P1) is forbidden in first species counterpoint
+        if vlq.vIntervals[1].name == 'P1':
             continue
 
         if vlq.parallelUnisonOrOctave() or vlq.parallelFifth():
@@ -74,59 +78,67 @@ def chooseNextCounterpoint(currentGround, nextGround, nextCPoint, key):
                 vlq.vIntervals[1].name in ('P8', 'P5'):
             continue
 
-        # allow occassional voice crossing
-
-        #if vlq.voiceCrossing():
-            #continue
-
         consonantLegalNextPitches.append(p)
 
     try:
         currentCPointPitch = random.choice(consonantLegalNextPitches)
     except IndexError:
         print('No legal pitches to harmonize CF found!')
-        print('currentG:', currentGround.nameWithOctave)
-        print('nextG:', nextGround.nameWithOctave)
-        print('nextCP:', nextCPoint.nameWithOctave)
+        print('previous note in CPoint:', prevCPoint.nameWithOctave)
+        print('previous note in CF:', prevGround.nameWithOctave)
+        print('current note in CF:', currentGround.nameWithOctave)
         sys.exit()
 
     return currentCPointPitch
 
 
-def harmonizeReverse(ground):
+def harmonize(ground):
     counterpoint = ground.template(fillWithRests=False)
     key = ground.analyze('key.krumhanslschmuckler')
 
     groundNotes = list(ground.recurse().notes)
-    groundNotes.reverse()
+    
+    #groundNotes.reverse()
     for currentGround in groundNotes:
+        # make a note to harmonize the current note in the cantus firmus
+        # (currently only 1:1)
         currentCPoint = music21.note.Note()
         currentCPoint.quarterLength = currentGround.quarterLength 
         counterpoint.measure(currentGround.measureNumber).insert(
             currentGround.offset, currentCPoint) 
 
-        # last note in counterpoint should be a P8
+
+        # first note in counterpoint should be a P5 or P8
         if len(list(counterpoint.recurse().notes)) == 1:
             currentCPoint.pitch = chooseRandomHarmonizingPitch(
-                    currentGround.pitch, key, intervalFilterList=[8]
+                    currentGround.pitch, key, intervalFilterList=[5, 8]
                     )
 
-        # penultimate note should be a M6
-        elif len(list(counterpoint.recurse().notes)) == 2:
+        # TODO leading tone should be approached either by step or by
+        # descending third
+
+        # penultimate note should be a M6 (leading tone)
+        elif len(list(counterpoint.recurse().notes)) == len(groundNotes)-1:
             currentCPoint.pitch = chooseRandomHarmonizingPitch(
                     currentGround.pitch, key, intervalFilterList=[6]
                     )
             currentCPoint.pitch.transpose(1, inPlace=True)
 
+        # last note in counterpoint should be a P8
+        elif len(list(counterpoint.recurse().notes)) == len(groundNotes):
+            currentCPoint.pitch = chooseRandomHarmonizingPitch(
+                    currentGround.pitch, key, intervalFilterList=[8]
+                    )
+        # all other notes should be consonant with the cantus firmus
         else:
-            nextGround = currentGround.next(className='Note')
-            nextCPoint = currentCPoint.next(className='Note')
+            prevGround = currentGround.previous(className='Note')
+            prevCPoint = currentCPoint.previous(className='Note')
             
             ambitus = music21.interval.Interval('m13')
 
             while ambitus.semitones >= 20:
                 currentCPoint.pitch = chooseNextCounterpoint(
-                        currentGround, nextGround, nextCPoint, key)
+                        prevCPoint, prevGround, currentGround, key)
                 ambitus = counterpoint.analyze('ambitus')
 
 
@@ -139,7 +151,7 @@ def harmonizeReverse(ground):
 
 def main():
     ground = music21.converter.parse('tinynotation: 4/4 D1 F E D G F A G F E D')
-    counterpoint = harmonizeReverse(ground)
+    counterpoint = harmonize(ground)
     display = music21.stream.Score(id='Display')
     display.insert(0, counterpoint)
     display.insert(0, ground)
