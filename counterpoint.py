@@ -20,9 +20,9 @@ class Mode(Enum):
     
 
 def choose_random_harmonizing_pitch(base_pitch, 
-                                 key, 
-                                 interval_filter_list=None
-                                 ):
+                                    key, 
+                                    interval_filter_list=None
+                                    ):
     ''' Return a pitch that harmonizes a given pitch'''
 
     if interval_filter_list:
@@ -108,24 +108,24 @@ def choose_next_counterpoint(prev_cpoint, prev_cf, current_cf, key):
 
 def harmonize(cf, modal=True):
     cpoint = cf.template(fillWithRests=False)
+    cf_notes = list(cf.recurse().notes)
     
     if modal:
         # assume the first note of a cantus firmus is the final of the mode
-        final = cf.recurse().notes[0].name
+        final = cf_notes[0].name
         key = Mode[final].value
     else:
         key = cf.analyze('key.krumhanslschmuckler')
 
-    cf_notes = list(cf.recurse().notes)
     
     for current_cf in cf_notes:
+
         # make a note to harmonize the current note in the cantus firmus
         # (currently only 1:1)
         current_cpoint = music21.note.Note()
         current_cpoint.quarterLength = current_cf.quarterLength 
         cpoint.measure(current_cf.measureNumber).insert(
             current_cf.offset, current_cpoint) 
-
 
         # first note in cpoint should be a P5 or P8
         if len(list(cpoint.recurse().notes)) == 1:
@@ -159,7 +159,6 @@ def harmonize(cf, modal=True):
                 current_cpoint.pitch = choose_next_counterpoint(
                         prev_cpoint, prev_cf, current_cf, key)
                 ambitus = cpoint.analyze('ambitus')
-
 
     # set clef so notes are centered on staff
     measure_1 = cpoint.recurse().getElementsByClass('Measure')[0]
