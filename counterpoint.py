@@ -50,8 +50,8 @@ def choose_next_counterpoint(prev_cpoint, prev_cf, current_cf, key):
 
     # cpoint should leap no more than an 8ve
     possible_next_pitches = key.getPitches(
-                min_pitch=prev_cpoint.pitch.transpose('-P8'),
-                max_pitch=prev_cpoint.pitch.transpose('P8')
+                minPitch=prev_cpoint.pitch.transpose('-P8'),
+                maxPitch=prev_cpoint.pitch.transpose('P8')
             )
 
     consonant_legal_next_pitches = []
