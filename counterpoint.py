@@ -3,9 +3,22 @@ import music21
 import random
 import sys
 
+from enum import Enum
+
 CONSONANCES = [1, 3, 5, 6, 8]
 
 MELODIC_CONSONANCES = ['P1', 'm2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'P8']
+
+class Voice_Range(Enum):
+    SOPRANO = ('C4', 'E5')
+    ALTO = ('F3', 'A4')
+    TENOR = ('C3', 'E4')
+    BASS = ('F3', 'A3')
+
+    def as_pitches(self):
+        '''Realize the lower/upper bounds of the voice range as pitches'''
+
+        return tuple([music21.pitch.Pitch(p) for p in self.value])
 
 
 def choose_random_harmonizing_pitch(base_pitch, 
@@ -163,7 +176,7 @@ def main():
         c.annotateIntervals()
 
     display.insert(0, reduction)
-    display.show()
+    #display.show()
 
 
 if __name__ == "__main__":
