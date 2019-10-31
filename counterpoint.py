@@ -3,10 +3,21 @@ import music21
 import random
 import sys
 
+from enum import Enum
+
+
 CONSONANCES = [1, 3, 5, 6, 8]
 
 MELODIC_CONSONANCES = ['P1', 'm2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'P8']
 
+class Mode(Enum):
+    D = music21.key.Key('D', 'Dorian')
+    E = music21.key.Key('E', 'Phrygian')
+    F = music21.key.Key('F', 'Lydian')
+    G = music21.key.Key('G', 'Mixolydian')
+    A = music21.key.Key('A', 'Aeolian')
+    C = music21.key.Key('C', 'Ionian')
+    
 
 def chooseRandomHarmonizingPitch(basePitch, key, intervalFilterList=None):
     ''' Return a pitch that harmonizes a given pitch'''
@@ -92,9 +103,16 @@ def chooseNextCounterpoint(prevCPoint, prevGround, currentGround, key):
     return currentCPointPitch
 
 
-def harmonize(ground):
+def harmonize(ground, modal=True):
     counterpoint = ground.template(fillWithRests=False)
-    key = ground.analyze('key.krumhanslschmuckler')
+    
+    if modal:
+        # assume the first note of a cantus firmus is the final of the mode
+        final = ground.recurse().notes[0].name
+        key = Mode[final].value
+    else:
+        key = ground.analyze('key.krumhanslschmuckler')
+
 
     groundNotes = list(ground.recurse().notes)
     
@@ -161,7 +179,7 @@ def main():
         c.annotateIntervals()
 
     display.insert(0, reduction)
-    display.show()
+    #display.show()
 
 
 if __name__ == "__main__":
