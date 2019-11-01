@@ -11,13 +11,16 @@ CONSONANCES = [1, 3, 5, 6, 8]
 MELODIC_CONSONANCES = ['P1', 'm2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'P8']
 
 class Mode(Enum):
-    D = music21.key.Key('D', 'Dorian')
-    E = music21.key.Key('E', 'Phrygian')
-    F = music21.key.Key('F', 'Lydian')
-    G = music21.key.Key('G', 'Mixolydian')
-    A = music21.key.Key('A', 'Aeolian')
-    C = music21.key.Key('C', 'Ionian')
+    D = 'DORIAN'
+    E = 'PHRYGIAN'
+    F = 'LYDIAN'
+    G = 'MIXOLYDIAN'
+    A = 'AEOLIAN'
+    C = 'IONIAN'
     
+    def as_key(self):
+        return music21.key.Key(self.name, self.value)
+
 
 def choose_random_harmonizing_pitch(base_pitch, 
                                     key, 
@@ -111,13 +114,12 @@ def harmonize(cf, modal=True):
     cf_notes = list(cf.recurse().notes)
     
     if modal:
-        # assume the first note of a cantus firmus is the final of the mode
-        final = cf_notes[0].name
-        key = Mode[final].value
+        # assume the last note of a cantus firmus is the final of the mode
+        final = cf_notes[len(cf_notes)-1].name
+        key = Mode[final].as_key()
     else:
         key = cf.analyze('key.krumhanslschmuckler')
 
-    
     for current_cf in cf_notes:
 
         # make a note to harmonize the current note in the cantus firmus
