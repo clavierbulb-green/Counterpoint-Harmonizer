@@ -3,15 +3,29 @@ import music21
 import random
 import sys
 
+from enum import Enum
+
+
 CONSONANCES = [1, 3, 5, 6, 8]
 
 MELODIC_CONSONANCES = ['P1', 'm2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'P8']
 
+class Mode(Enum):
+    D = 'DORIAN'
+    E = 'PHRYGIAN'
+    F = 'LYDIAN'
+    G = 'MIXOLYDIAN'
+    A = 'AEOLIAN'
+    C = 'IONIAN'
+    
+    def as_key(self):
+        return music21.key.Key(self.name, self.value)
+
 
 def choose_random_harmonizing_pitch(base_pitch, 
-                                 key, 
-                                 interval_filter_list=None
-                                 ):
+                                    key, 
+                                    interval_filter_list=None
+                                    ):
     ''' Return a pitch that harmonizes a given pitch'''
 
     if interval_filter_list:
@@ -39,8 +53,8 @@ def choose_next_counterpoint(prev_cpoint, prev_cf, current_cf, key):
 
     # cpoint should leap no more than an 8ve
     possible_next_pitches = key.getPitches(
-                min_pitch=prev_cpoint.pitch.transpose('-P8'),
-                max_pitch=prev_cpoint.pitch.transpose('P8')
+                minPitch=prev_cpoint.pitch.transpose('-P8'),
+                maxPitch=prev_cpoint.pitch.transpose('P8')
             )
 
     consonant_legal_next_pitches = []
@@ -95,20 +109,25 @@ def choose_next_counterpoint(prev_cpoint, prev_cf, current_cf, key):
     return current_cpointPitch
 
 
-def harmonize(cf):
+def harmonize(cf, modal=True):
     cpoint = cf.template(fillWithRests=False)
-    key = cf.analyze('key.krumhanslschmuckler')
-
     cf_notes = list(cf.recurse().notes)
     
+    if modal:
+        # assume the last note of a cantus firmus is the final of the mode
+        final = cf_notes[len(cf_notes)-1].name
+        key = Mode[final].as_key()
+    else:
+        key = cf.analyze('key.krumhanslschmuckler')
+
     for current_cf in cf_notes:
+
         # make a note to harmonize the current note in the cantus firmus
         # (currently only 1:1)
         current_cpoint = music21.note.Note()
         current_cpoint.quarterLength = current_cf.quarterLength 
         cpoint.measure(current_cf.measureNumber).insert(
             current_cf.offset, current_cpoint) 
-
 
         # first note in cpoint should be a P5 or P8
         if len(list(cpoint.recurse().notes)) == 1:
@@ -143,7 +162,6 @@ def harmonize(cf):
                         prev_cpoint, prev_cf, current_cf, key)
                 ambitus = cpoint.analyze('ambitus')
 
-
     # set clef so notes are centered on staff
     measure_1 = cpoint.recurse().getElementsByClass('Measure')[0]
     measure_1.clef = music21.clef.bestClef(cpoint.flat)
@@ -163,7 +181,7 @@ def main():
         c.annotateIntervals()
 
     display.insert(0, reduction)
-    display.show()
+    #display.show()
 
 
 if __name__ == "__main__":
