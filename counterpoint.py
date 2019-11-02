@@ -5,6 +5,8 @@ import sys
 
 from enum import Enum
 
+# ========== CONSTANTS ========== #
+
 CONSONANCES = [1, 3, 5, 6, 8]
 
 MELODIC_CONSONANCES = ['P1', 'm2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'P8']
@@ -21,7 +23,7 @@ class Mode(Enum):
         return music21.key.Key(self.name, self.value)
 
 
-class Voice_Range(Enum):
+class VoiceRange(Enum):
     SOPRANO = ('C4', 'E5')
     ALTO = ('F3', 'A4')
     TENOR = ('C3', 'E4')
@@ -31,6 +33,57 @@ class Voice_Range(Enum):
         '''Realize the lower/upper bounds of the voice range as pitches'''
 
         return tuple([music21.pitch.Pitch(p) for p in self.value])
+
+
+# ========== CLASSES========== #
+
+class Melody():
+
+    def __init__(self, voice_type, final):
+
+        self.voice_range = VoiceRange[voice_type.upper()]
+        self.pitch_range = self.voice_range.as_pitches()
+        self.range_min = self.pitch_range[0]
+        self.range_max = self.pitch_range[1]
+        
+        self.mode = Mode[final.upper()]
+
+        self.intervals = []
+        self.notes = []
+
+    def pitch_in_voice_range(self, pitch):
+        '''Return whether a given pitch is within the voice range of
+        this Melody'''
+
+        return pitch > self.range_min and pitch < self.range_max
+
+    def append_note(self, note):
+        '''Adds a Note to the Melody, and records the Interval the
+        Melody moves to reach the new Note'''
+
+        if not self.pitch_in_voice_range(note.pitch):
+            raise ValueError('Attempt to add note with pitch out of bounds of voice range')
+
+        if self.notes:
+            prev_note = self.notes[len(self.notes) - 1]
+            melodic_interval = music21.interval.Interval(prev_note, note)
+            self.intervals.append(melodic_interval)
+
+        self.notes.append(note)
+
+
+class CantusFirmus(Melody):
+
+    def __init__(self, voice_type, mode):
+        super().__init__(voice_type, mode)
+
+
+    def generate(self):
+        pass
+
+
+class Counterpoint(Melody):
+    pass
 
 
 def choose_random_harmonizing_pitch(base_pitch, 
