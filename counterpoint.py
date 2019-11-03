@@ -71,6 +71,16 @@ class Melody():
 
         self.notes.append(note)
 
+    def realize(self):
+        '''Returns a music21.stream.Part realization of this Melody'''
+        
+        part = music21.stream.Part()
+        for n in self.notes:
+            part.append(n)
+
+        part.makeNotation(bestClef=True)
+        return part
+
 
 class CantusFirmus(Melody):
 
