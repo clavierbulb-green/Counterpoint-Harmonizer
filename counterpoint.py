@@ -27,7 +27,7 @@ class VoiceRange(Enum):
     SOPRANO = ('C4', 'E5')
     ALTO = ('F3', 'A4')
     TENOR = ('C3', 'E4')
-    BASS = ('F3', 'A3')
+    BASS = ('F2', 'A3')
 
     def as_pitches(self):
         '''Realize the lower/upper bounds of the voice range as pitches'''
