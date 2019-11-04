@@ -42,6 +42,8 @@ class Melody():
     def __init__(self, voice_type, final):
 
         self.voice_range = VoiceRange[voice_type.upper()]
+        self.voice_type = self.voice_range.name
+
         self.pitch_range = self.voice_range.as_pitches()
         self.range_min = self.pitch_range[0]
         self.range_max = self.pitch_range[1]
@@ -55,7 +57,7 @@ class Melody():
         '''Return whether a given pitch is within the voice range of
         this Melody'''
 
-        return pitch > self.range_min and pitch < self.range_max
+        return pitch >= self.range_min and pitch <= self.range_max
 
     def append_note(self, note):
         '''Adds a Note to the Melody, and records the Interval the
@@ -86,7 +88,6 @@ class CantusFirmus(Melody):
 
     def __init__(self, voice_type, mode):
         super().__init__(voice_type, mode)
-
 
     def generate(self):
         pass
