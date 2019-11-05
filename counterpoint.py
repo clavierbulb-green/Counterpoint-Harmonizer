@@ -11,6 +11,9 @@ CONSONANCES = [1, 3, 5, 6, 8]
 
 MELODIC_CONSONANCES = ['P1', 'm2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'P8']
 
+
+# ========== ENUMS========== #
+
 class Mode(Enum):
     D = 'DORIAN'
     E = 'PHRYGIAN'
@@ -18,9 +21,34 @@ class Mode(Enum):
     G = 'MIXOLYDIAN'
     A = 'AEOLIAN'
     C = 'IONIAN'
-    
+
     def as_key(self):
         return music21.key.Key(self.name, self.value)
+
+
+class VoiceType(Enum):
+    SOPRANO = 1
+    ALTO = 2
+    TENOR = 3
+    BASS = 4
+
+    def __init__(self, value):
+        self.range = VoiceRange[self.name]
+
+    def get_adjacent(self, relation="above"):
+        '''Return a VoiceType adjacent either above or below to this
+        VoiceType'''
+
+        if relation == "above":
+            adjacent = self.value - 1
+
+        elif relation == "below":
+            adjacent = self.value + 1
+
+        try:
+            return VoiceType(adjacent)
+        except ValueError:
+            print(f"ERROR: No VoiceType {relation} {self.name}")
 
 
 class VoiceRange(Enum):
@@ -40,14 +68,9 @@ class VoiceRange(Enum):
 class Melody():
 
     def __init__(self, voice_type, final):
+        self.type = VoiceType[voice_type.upper()]
+        self.range = self.type.range
 
-        self.voice_range = VoiceRange[voice_type.upper()]
-        self.voice_type = self.voice_range.name
-
-        self.pitch_range = self.voice_range.as_pitches()
-        self.range_min = self.pitch_range[0]
-        self.range_max = self.pitch_range[1]
-        
         self.mode = Mode[final.upper()]
 
         self.intervals = []
@@ -57,14 +80,16 @@ class Melody():
         '''Return whether a given pitch is within the voice range of
         this Melody'''
 
-        return pitch >= self.range_min and pitch <= self.range_max
+        return min(self.range.as_pitches()) <= pitch \
+            <= max(self.range.as_pitches())
 
     def append_note(self, note):
         '''Adds a Note to the Melody, and records the Interval the
         Melody moves to reach the new Note'''
 
         if not self.pitch_in_voice_range(note.pitch):
-            raise ValueError('Attempt to add note with pitch out of bounds of voice range')
+            raise ValueError('Attempt to add note with pitch out of \
+                    bounds of voice range')
 
         if self.notes:
             prev_note = self.notes[len(self.notes) - 1]
@@ -75,7 +100,7 @@ class Melody():
 
     def realize(self):
         '''Returns a music21.stream.Part realization of this Melody'''
-        
+
         part = music21.stream.Part()
         for n in self.notes:
             part.append(n)
@@ -94,11 +119,13 @@ class CantusFirmus(Melody):
 
 
 class Counterpoint(Melody):
-    pass
+
+    def __init__(self, cantus_firmus, relation="above"):
+        pass
 
 
-def choose_random_harmonizing_pitch(base_pitch, 
-                                    key, 
+def choose_random_harmonizing_pitch(base_pitch,
+                                    key,
                                     interval_filter_list=None
                                     ):
     ''' Return a pitch that harmonizes a given pitch'''
@@ -110,7 +137,7 @@ def choose_random_harmonizing_pitch(base_pitch,
         if len(consonances) != 0:
             interval_num = random.choice(consonances)
         else:
-            return # TODO raise exception if no consonances in filter list?
+            return  # TODO raise exception if no consonances in filter list?
     else:
         interval_num = random.choice(CONSONANCES)
 
@@ -187,7 +214,7 @@ def choose_next_counterpoint(prev_cpoint, prev_cf, current_cf, key):
 def harmonize(cf, modal=True):
     cpoint = cf.template(fillWithRests=False)
     cf_notes = list(cf.recurse().notes)
-    
+
     if modal:
         # assume the last note of a cantus firmus is the final of the mode
         final = cf_notes[len(cf_notes)-1].name
@@ -200,9 +227,9 @@ def harmonize(cf, modal=True):
         # make a note to harmonize the current note in the cantus firmus
         # (currently only 1:1)
         current_cpoint = music21.note.Note()
-        current_cpoint.quarterLength = current_cf.quarterLength 
+        current_cpoint.quarterLength = current_cf.quarterLength
         cpoint.measure(current_cf.measureNumber).insert(
-            current_cf.offset, current_cpoint) 
+            current_cf.offset, current_cpoint)
 
         # first note in cpoint should be a P5 or P8
         if len(list(cpoint.recurse().notes)) == 1:
@@ -229,7 +256,7 @@ def harmonize(cf, modal=True):
         else:
             prev_cf = current_cf.previous(className='Note')
             prev_cpoint = current_cpoint.previous(className='Note')
-            
+
             ambitus = music21.interval.Interval('m13')
 
             while ambitus.semitones >= 20:
@@ -256,7 +283,7 @@ def main():
         c.annotateIntervals()
 
     display.insert(0, reduction)
-    #display.show()
+    # display.show()
 
 
 if __name__ == "__main__":
